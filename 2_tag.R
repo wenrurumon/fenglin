@@ -59,6 +59,15 @@ p.mid <- p.mid[!names(p.mid)%in%names(p.heavy)]
 
 #总体病情判定，共34608个病人，5175个重度(15%)，10462个中重度(30%)
 
+overall_rate <- rbind(
+  data.table(patient_id=names(p.heavy),note=as.numeric(p.heavy),overall='heavy'),
+  data.table(patient_id=names(p.mid),note=as.numeric(p.mid),overall='mid'))
+write.csv(overall_rate,'overall_rate.csv',row.names=F)
+
+#######################################################
+#######################################################
+#######################################################
+
 # 2. 如果是，再逐个状态判断（逐个状态判断的严重程度不会超过总体）
 # 2.1 重症急性胰腺炎：该状态时间内使用呼吸机持续时间48小时以上，
 #   或者使用血透持续时间48小时以上，
