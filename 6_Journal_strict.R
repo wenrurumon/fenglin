@@ -85,7 +85,7 @@ i <- 'C879DF3DF8E41B1E809ACD6084D78AA2'
 
 j <- 0
 system.time(
-  jm <- lapply(p[1:20],function(i){
+  jm <- lapply(p,function(i){
     print(j <<- j+1)
     i.info <- i.base <- filter(x.base,patient_id==i)
     i.idx <- filter(x.idx,patient_id==i)
@@ -112,3 +112,4 @@ system.time(
     list(info=i.info,journal=i,i.rate)
   })
 )
+save(jm,file='jm1220.rda')
