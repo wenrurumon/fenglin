@@ -2,7 +2,7 @@
 rm(list=ls())
 library(data.table)
 library(dplyr)
-load('C:/Users/WenluluSens/Downloads/jm.rda')
+#load('C:/Users/WenluluSens/Downloads/jm.rda')
 load('C:/Users/WenluluSens/Downloads/pdata.rda')
 
 pdata <- lapply(pdata,as.data.table)
