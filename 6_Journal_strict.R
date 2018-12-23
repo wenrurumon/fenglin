@@ -1,14 +1,10 @@
 
+rm(list=ls())
 library(data.table)
 library(dplyr)
+load('C:/Users/WenluluSens/Downloads/jm.rda')
+load('C:/Users/WenluluSens/Downloads/pdata.rda')
 
-rm(list=ls())
-# setwd('/Users/wenrurumon/Documents/fenglin')
-# files <- dir(pattern='csv')
-# pdata <- lapply(files,fread,encoding='UTF-8')
-# names(pdata) <- files
-setwd('E:/fenglin/')
-load("E:/fenglin/pdata.rda")
 pdata <- lapply(pdata,as.data.table)
 
 x.base <- pdata$base
@@ -85,7 +81,7 @@ i <- 'C879DF3DF8E41B1E809ACD6084D78AA2'
 
 j <- 0
 system.time(
-  jm <- lapply(p,function(i){
+  jm <- lapply(p[1:300],function(i){
     print(j <<- j+1)
     i.info <- i.base <- filter(x.base,patient_id==i)
     i.idx <- filter(x.idx,patient_id==i)
@@ -96,20 +92,22 @@ system.time(
     i.idx <- select(i.idx,date=interval_days,status=item,note=value)
     i.exe1 <- select(i.exe,date=interval_days1,status=item_name,note=hours) %>% mutate(status=paste('start',status))
     i.exe2 <- select(i.exe,date=interval_days2,status=item_name,note=hours) %>% mutate(status=paste('end',status))
-    i.rate <- rbind(filter(x.rate,patient_id==i),
-      (i.exe %>% filter(item_name=='ICU') %>% select(-item_name) %>% mutate(rate=1, item='ICU'))) %>% select(
-        -patient_id
-      )
+    i.rate <- (filter(x.rate,patient_id==i))
+    i.rate2 <- (i.exe %>% filter(item_name=='ICU') %>% 
+                  select(-item_name) %>% 
+                  mutate(rate=1, item='ICU'))
+    i.rate <- rbind(as.data.frame(i.rate),as.data.frame(i.rate2)) %>% as.data.table() %>% select(-patient_id)
     i.con <- data.table(interval_days1=0,interval_days2=i.info$interval_days,
                         hours=i.info$interval_days*24,rate=i.info$com_or_not,
                         item='com_or_not')
     i.diag <-   data.table(interval_days1=0,interval_days2=i.info$interval_days,hours=i.info$interval_days*24,
                            rate=(i.info$diag_no==14)*2+(i.info$diag_no%in%c(12,9,15))*1,
                            item=paste(i.info$diag_no,i.info$diag))
+    i.rate <- mutate(i.rate,interval_days1=interval_days1/i.info$interval_days,interval_days2=interval_days2/i.info$interval_days)
     i.rate <- rbind(i.diag,i.con,i.rate)
     i.info <- data.table(i.info,overall_rate=max(i.rate$rate))
     i <- rbind(i.base,i.idx,i.exe1,i.exe2) %>% arrange(date,status) %>% mutate(date=date/max(date))
     list(info=i.info,journal=i,i.rate)
   })
 )
-save(jm,file='jm1220.rda')
+# save(jm,file='jm1220.rda')
