@@ -1,10 +1,14 @@
 
-rm(list=ls())
 library(data.table)
 library(dplyr)
-#load('C:/Users/WenluluSens/Downloads/jm.rda')
-load('C:/Users/WenluluSens/Downloads/pdata.rda')
 
+rm(list=ls())
+# setwd('/Users/wenrurumon/Documents/fenglin')
+# files <- dir(pattern='csv')
+# pdata <- lapply(files,fread,encoding='UTF-8')
+# names(pdata) <- files
+setwd('E:/fenglin/')
+load("E:/fenglin/pdata.rda")
 pdata <- lapply(pdata,as.data.table)
 
 x.base <- pdata$base
@@ -18,7 +22,8 @@ p <- unique(x.base$patient_id)
 #################
 
 #JIGAN RATE
-x.jg <- filter(x.idx,item=='肌酐') %>% mutate(rate=(value>=170))
+x.jg <- filter(x.idx,item=='肌酐') %>% arrange(
+  patient_id,interval_days) %>% mutate(rate=(value>=170))
 p.jg <- unique(filter(x.jg,rate>0)$patient_id)
 x.jg <- filter(x.jg, patient_id%in%p.jg) %>% mutate(
   lagid=lag(patient_id,1),lagrate=lag(rate,1),
@@ -35,7 +40,8 @@ x.jg <- x.jg %>% group_by(patient_id,check) %>% summarise(
   item = '肌酐'
 )
 #XUETOU RATE
-x.xt <- filter(x.exe,item_name=='血透') %>% mutate(
+x.xt <- filter(x.exe,item_name=='血透') %>% arrange(
+  patient_id,interval_days2) %>% mutate(
   lagid=lag(patient_id,1), 
   interval_days3=lag(interval_days2,1),
   nextinterval=interval_days1-interval_days3,
@@ -50,8 +56,11 @@ x.xt <- x.xt %>% group_by(patient_id,check) %>% summarise(
   interval_days1=min(interval_days1), interval_days2=max(interval_days2)
 ) %>% mutate(hours=(interval_days2-interval_days1)*24,
              rate=(hours>=48)+1, item='血透') %>% select(-check)
+# filter(x.xt,patient_id==p[[55]])
+
 #HUXIJI RATE
-x.hxj <- filter(x.exe,item_name=='呼吸机') %>% mutate(
+x.hxj <- filter(x.exe,item_name=='呼吸机') %>% arrange(
+  patient_id,interval_days2) %>% mutate(
   lagid=lag(patient_id,1), 
   interval_days3=lag(interval_days2,1),
   nextinterval=interval_days1-interval_days3,
@@ -81,7 +90,7 @@ i <- 'C879DF3DF8E41B1E809ACD6084D78AA2'
 
 j <- 0
 system.time(
-  jm <- lapply(p[1:300],function(i){
+  jm <- lapply(p,function(i){
     print(j <<- j+1)
     i.info <- i.base <- filter(x.base,patient_id==i)
     i.idx <- filter(x.idx,patient_id==i)
@@ -107,7 +116,7 @@ system.time(
     i.rate <- rbind(i.diag,i.con,i.rate)
     i.info <- data.table(i.info,overall_rate=max(i.rate$rate))
     i <- rbind(i.base,i.idx,i.exe1,i.exe2) %>% arrange(date,status) %>% mutate(date=date/max(date))
-    list(info=i.info,journal=i,i.rate)
+    list(info=i.info,journal=i,rate=i.rate)
   })
 )
-# save(jm,file='jm1220.rda')
+# save(jm,file='jm1224.rda')
