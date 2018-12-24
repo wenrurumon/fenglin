@@ -5,7 +5,7 @@ library(reshape2)
 library(reshape)
 
 setwd('E:/fenglin/')
-load('jm1220.rda')
+load('jm1224.rda')
 load('pdata.rda')
 jm.sum <- sapply(jm,function(x){x[[1]]})
 table(unlist(jm.sum[9,]))/ncol(jm.sum)
@@ -83,7 +83,7 @@ imlm <- function(y,x){
 
 
 #######################################
-# 函数拟合
+# 缺失时间补齐
 #######################################
 
 #检验指标数据拟合
@@ -137,6 +137,25 @@ x.exe <- lapply(jm[1:300],function(jmi){
 x.exe <- as.data.frame(do.call(rbind,x.exe))
 x.exe$crate <- apply(x.exe,1,max)
 
+#Test
+
+# jm.plot <- jm[c(55,234,485,566,667,784,1118)]
+# j <- 6
+# jm.plot <- lapply(idx,function(i){filter(jm.plot[[j]]$journal,status==i)})
+# jm.plot <- jm.plot[sapply(jm.plot,nrow)>0]
+# 
+# par(mfrow=c(3,2))
+# for(i in 1:length(jm.plot)){
+# x <- jm.plot[[i]]$date
+# y <- jm.plot[[i]]$note
+# y2 <- imspline(x,y)
+# plot((0:100)/100,y2,col=2,type='lines'); lines(x,y,type='p')}
+# 
+
+#######################################
+# 缺失变量补齐
+#######################################
+
 #合成数据
 fdata2 <- fdata <- data.table(x.idx,x.exe,time=rep((0:100)/100,length=nrow(x.exe))) %>% as.data.frame()
 # filter(fdata,i==234)
@@ -183,7 +202,30 @@ mdata2.test <- sapply(1:12,function(i){
 }); print(t(mdata2.test))
 fdata2[!is.na(fdata)] <- fdata[!is.na(fdata)]
 
+#######################################
+# 基本预测
+#######################################
+
+sel <- unlist(lapply(1:300,function(i){
+  jmi.date <- round((jm[[i]]$journal)$date,2)
+  paste(i,jmi.date)
+}))
+fdata2[,1] <- as.factor(fdata2[,1])
+mdata <- filter(fdata2,paste(i,time)%in%sel)[,-1]
+fdata <- fdata2[,-1]
+
+m.lda <- MASS::lda(crate~.,data=mdata)
+p.lda <- predict(m.lda,fdata)$class
+table(crate=fdata$crate,predict=p.lda)
+
+m.logi <- glm(crate~.,data=mdata)
+p.logi <- round(predict(m.logi,newdata=fdata,type='response'))
+p.logi[p.logi==3] <- 2
+table(crate=fdata$crate,predict=p.logi)
+
+# table(mdata$crate)
+# table(mdata$crate)/sum(table(mdata$crate))
+# table(mdata$rate)
+# table(mdata$rate)/sum(table(mdata$rate))
 
 
-  
-###########
