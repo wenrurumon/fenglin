@@ -265,37 +265,37 @@ tag.exe <- unique(fexe$item)
 
 ############
 
-pidi <- unique(base$pid)[[10901]]
-
-jm <- function(pidi){
-  print(k<<-k+1)
-  trate <- imrate(pidi)
-  i.base <- filter(base,pid==pidi)
-  i.idx <- filter(idx,pid==pidi)
-  i.idx <- sapply(tag.idx,function(i){
-    i <- filter(i.idx,item==i) %>%
-      group_by(pid,hours,item) %>% summarise(value=mean(value))
-    imspline(i$hours,i$value,i.base$hours,0.1,F,T)
-  })
-  i.exe <- filter(fexe,pid==pidi)
-  i.exe <- sapply(tag.exe,function(i){
-    i <- filter(i.exe,item==i)
-    imrange(i,i.base$hours)
-  })
-  rlt <- data.table(pid=pidi,com=i.base$com_or_not,diag_no=i.base$diag_no,
-        orate=i.base$orate,hours=i.base$hours,
-        i.idx,i.exe,trate=trate)
-  rlt
-}
-k <- 0
-options(warn = 1)
-system.time(jms <- lapply(unique(base$pid),jm))
-jms <- do.call(rbind,jms);dim(jms)
-save(jms,file='jms_20181229.rda')
+# pidi <- unique(base$pid)[[10901]]
+# 
+# jm <- function(pidi){
+#   print(k<<-k+1)
+#   trate <- imrate(pidi)
+#   i.base <- filter(base,pid==pidi)
+#   i.idx <- filter(idx,pid==pidi)
+#   i.idx <- sapply(tag.idx,function(i){
+#     i <- filter(i.idx,item==i) %>%
+#       group_by(pid,hours,item) %>% summarise(value=mean(value))
+#     imspline(i$hours,i$value,i.base$hours,0.1,F,T)
+#   })
+#   i.exe <- filter(fexe,pid==pidi)
+#   i.exe <- sapply(tag.exe,function(i){
+#     i <- filter(i.exe,item==i)
+#     imrange(i,i.base$hours)
+#   })
+#   rlt <- data.table(pid=pidi,com=i.base$com_or_not,diag_no=i.base$diag_no,
+#         orate=i.base$orate,hours=i.base$hours,
+#         i.idx,i.exe,trate=trate)
+#   rlt
+# }
+# k <- 0
+# options(warn = 1)
+# system.time(jms <- lapply(unique(base$pid),jm))
+# jms <- do.call(rbind,jms);dim(jms)
+# save(jms,file='jms_20181229.rda')
 
 ############################
 # Descriptive Summary
-# load('jms_20181227.rda')
+load('jms_20181229.rda')
 ############################
 
 #data validation
@@ -308,7 +308,8 @@ system.time(jms.colmeans <- jms.colmeans %>% group_by(pid) %>% summarise(
   V6=mean(V6),V7=mean(V7),V8=mean(V8),V9=mean(V9),V10=mean(V10),
   V11=mean(V11),V12=mean(V12),V13=mean(V13),V14=mean(V14),V15=mean(V15),
   V16=mean(V16),V17=mean(V17),V18=mean(V18),V19=mean(V19),V20=mean(V20),
-  V21=mean(V21),V22=mean(V22),V23=mean(V23),V24=mean(V24),V25=mean(V25)
+  V21=mean(V21),V22=mean(V22),V23=mean(V23),V24=mean(V24),V25=mean(V25),
+  V26=mean(V26)
 ))
 rownames(jms.colmeans) <- jms.colmeans$pid
 jms.colmeans <- as.data.table(jms.colmeans %>% select(-pid))
@@ -424,3 +425,4 @@ write.csv(fdata,'fdata.temp',fileEncoding='UTF-8')
 write.csv(rate,'rate.temp',fileEncoding='UTF-8')
 write.csv(idx,'idx.temp',fileEncoding='UTF-8')
 write.csv(exe,'exe.temp',fileEncoding='UTF-8')
+write.csv(mdata,'mdata.temp',fileEncoding='UTF-8')
