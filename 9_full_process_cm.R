@@ -377,7 +377,23 @@ modelk.cor <- cbind(modelk.cor,sapply(1:16,function(i){
 # Final Data Set
 ############################
 
-gc()
 fdata <- as.data.frame(jms)
 fdata[,colnames(jms)%in%names(which(diag(jms.saturation)<1))] <- mdata2
 
+sel1 <- merge(unique(select(idx,pid,hours)),
+              select(base,pid,thours=hours),by=c('pid')) %>% mutate(
+                idx = floor(hours/thours*100), check = (idx>100|idx<0)
+              ) %>% filter(!check) %>% select(-hours,-thours,-check)
+sel1 <- unique(paste(sel1$pid,sel1$idx))
+sel2 <- merge(unique(select(exe,pid,hour1,hour2)),
+              select(base,pid,thours=hours),by=c('pid')) %>% mutate(
+                idx1 = floor(hour1/thours*100),idx2=ceiling(hour2/thours*100),
+                idx3 = round((hour1+hour2)/2/thours*100,0),
+                check = (idx2>100|idx1<0)
+              ) 
+sel2 <- unique(c(paste(sel2$pid,sel2$idx1),
+                 paste(sel2$pid,sel2$idx2),
+                 paste(sel2$pid,sel2$idx3)))
+sel1 <- unique(c(sel1,sel2))
+sel2 <- paste(fdata$pid,rep(0:100,length=nrow(fdata)))
+mdata <- fdata[sel2%in%sel1,]
