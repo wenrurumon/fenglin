@@ -70,28 +70,80 @@ sel2 <- paste(fdata$pid,rep(0:100,length=nrow(fdata)))
 
 base <- unique(select(fdata,pid,orate,hours))
 base %>% group_by(orate) %>% summarise(n(),mean(hours))
-
-mdata <- fdata[sel2%in%sel1,]
 set.seed(12345); train <- sample(1:nrow(mdata))
 train <- lapply(unique(cut(1:nrow(mdata),10)),function(i){
   train[cut(1:nrow(mdata),10)==i]
 })
-
-trate <- mdata$trate
-mdata <- scale(select(mdata,-pid,-trate))
-mdata.x <- qpca(mdata,12)$X; colnames(mdata.x) <- paste0('CS',1:ncol(mdata.x))
-mdata.x <- cbind(mdata.x,trate=trate)
+fdata.rate <- fdata$trate
+fdata2 <- scale(select(fdata,-pid,-trate))
+data2.x <- qpca(fdata2,12)$X
+colnames(data2.x) <- paste0('CS',1:ncol(data2.x))
+data2.t <- fdata$trate
+fdata2.x <- data.table(data2.x,trate=data2.t)
+mdata2.x <- fdata2.x[sel2%in%sel1,]
 
 model <- sapply(1:10,function(i){
   print(i)
-  traindf <- as.data.frame(mdata.x[train[[i]],])
-  testdf <- as.data.frame(mdata.x[-train[[i]],])
+  traindf <- as.data.frame(mdata2.x[train[[i]],])
+  testdf <- as.data.frame(mdata2.x[-train[[i]],])
   # modeli <- glm(trate~.,data=traindf)
   # predi <- predict(modeli,newdata=as.data.frame(mdata.x),type='response')
   modeli <- MASS::lda(trate~.,data=traindf)
-  predi <- predict(modeli,newdata=as.data.frame(mdata.x))$class
-  print(table(predi,trate))
+  predi <- predict(modeli,newdata=fdata2.x)$class
+  print(table(predi=predi,trate=fdata2.x$trate))
   as.numeric(predi)-1
 })
-model <- rowMeans(model)
-table(model=round(model,0),trate)
+model <- rowMeans(model10 <- model)
+
+# model10[!model10%in%c(0,2)] <- 1
+# test <- rowMeans(model10)
+# test[!test%in%c(0,2)] <- 1
+#  
+# test <- table(predict=round(model,0)[sel2%in%sel1],actual=fdata.rate[sel2%in%sel1]);test;sum(diag(test))/sum(test)
+# test <- table(predict=predict(MASS::lda(fdata.rate[sel2%in%sel1]~model10[sel2%in%sel1,]))$class,actual=fdata.rate[sel2%in%sel1]);test;sum(diag(test))/sum(test)
+# test <- table(predict=round(model,0),actual=fdata.rate);test;sum(diag(test))/sum(test)
+# model10.rate <- data.frame(model10,rate=fdata.rate)
+# test <- predict(MASS::lda(rate~.,data=model10.rate[sel2%in%sel1,]),newdata=model10.rate)$class
+# test <- table(predict=test,actual=fdata.rate);test;sum(diag(test))/sum(test)
+# model10.rate <- data.frame(x=model,rate=fdata$rate)
+# test <- predict(MASS::lda(rate~.,data=model10.rate[sel2%in%sel1,]),newdata=model10.rate)$class
+# table(test[sel2%in%sel1],fdata.rate[sel2%in%sel1])
+# test <- table(predict=test,actual=fdata.rate);test;sum(diag(test))/sum(test)
+# fdata <- mutate(fdata,rate=as.numeric(test)-1)
+
+test <- model
+test[!test%in%c(0,2)] <- 1
+table(predict=test[sel2%in%sel1],actual=fdata$trate[sel2%in%sel1])
+table(predict=test,actual=fdata$trate)
+fdata <- mutate(fdata,mrate=test)
+fdata <- mutate(fdata,rate=ifelse(mrate>trate,mrate,trate))
+
+(fdata %>% group_by(pid) %>% summarise(orate=mean(orate),rate=max(rate),trate=max(trate))) %>% group_by(
+  orate,rate
+) %>% summarise(n())
+
+test <- apply(((fdata %>% group_by(pid) %>% summarise(orate=mean(orate),rate=max(rate),trate=max(trate))) %>% select(
+  -pid
+)),2,function(x){as.numeric(table(x))})
+test / colSums(test)
+
+table(predict=fdata$rate,raw=fdata$trate)
+
+########################
+# HMM
+########################
+
+data_hmm <- as.data.table(data2.x) %>% mutate(rate=fdata$orate)
+data_hmm <- data_hmm %>% group_by(pid=fdata$pid) %>% summarise(
+  CS1=mean(CS1),CS2=mean(CS2),CS3=mean(CS3),CS4=mean(CS4),CS5=mean(CS5),CS6=mean(CS6),
+  CS7=mean(CS7),CS8=mean(CS8),CS9=mean(CS9),CS10=mean(CS10),CS11=mean(CS11),CS12=mean(CS12),
+  orate = (mean(rate)>0)+0
+)
+cbind(pvalue=apply(select(data_hmm,-pid,-orate),2,function(x){t.test(x~data_hmm$orate)$p.value}),
+      thred=colMeans(apply(select(data_hmm,-pid,-orate),2,function(x){MASS::lda(data_hmm$orate~x)$means})))
+
+data_hmm.thred <- colMeans(apply(select(data_hmm,-pid,-orate),2,function(x){MASS::lda(data_hmm$orate~x)$means}))
+for(i in 1:ncol(data2.x)){
+  data2.x[,i] <- (data2.x[,i] > data_hmm.thred[i])+0
+}
+
