@@ -143,7 +143,22 @@ cbind(pvalue=apply(select(data_hmm,-pid,-orate),2,function(x){t.test(x~data_hmm$
       thred=colMeans(apply(select(data_hmm,-pid,-orate),2,function(x){MASS::lda(data_hmm$orate~x)$means})))
 
 data_hmm.thred <- colMeans(apply(select(data_hmm,-pid,-orate),2,function(x){MASS::lda(data_hmm$orate~x)$means}))
-for(i in 1:ncol(data2.x)){
-  data2.x[,i] <- (data2.x[,i] > data_hmm.thred[i])+0
-}
+data_hmm <- as.data.frame(data2.x)
+for(i in 1:ncol(data2.x)){data_hmm[,i] <- (data_hmm[,i] > data_hmm.thred[i])+0}
+data_hmm <- as.data.table(mutate(data_hmm,rate=fdata$rate,pid=fdata$pid))
+data_hmm <- mutate(data_hmm,lrate=lag(rate,default=0),lpid=lag(pid,default='0'))
+
+# HMM input data
+# data_hmm_back <- data_hmm
+# data_hmm <- data_hmm_back
+data_hmm <- filter(data_hmm,fdata$orate>0)
+emisspr_ori <- data_hmm %>% group_by(rate) %>% summarise(
+  CS1=mean(CS1),CS2=mean(CS2),CS3=mean(CS3),CS4=mean(CS4),CS5=mean(CS5),CS6=mean(CS6),
+  CS7=mean(CS7),CS8=mean(CS8),CS9=mean(CS9),CS10=mean(CS10),CS11=mean(CS11),CS12=mean(CS12)
+)
+transpro <- filter(data_hmm,lpid==pid) %>% group_by(lrate,rate) %>% summarise(n=n())
+startpro <- table(fdata$orate)/sum(table(fdata$orate))
+list(round(emisspr_ori,2),transpro,startpro)
+
+
 
