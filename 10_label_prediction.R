@@ -59,7 +59,7 @@ sel2 <- merge(unique(select(exe,pid,hour1,hour2)),
                 idx1 = floor(hour1/thours*100),idx2=ceiling(hour2/thours*100),
                 idx3 = round((hour1+hour2)/2/thours*100,0),
                 check = (idx2>100|idx1<0)
-              ) 
+              )
 sel2 <- unique(c(paste(sel2$pid,sel2$idx1),
                  paste(sel2$pid,sel2$idx2),
                  paste(sel2$pid,sel2$idx3)))
@@ -98,7 +98,7 @@ model <- rowMeans(model10 <- model)
 # model10[!model10%in%c(0,2)] <- 1
 # test <- rowMeans(model10)
 # test[!test%in%c(0,2)] <- 1
-#  
+#
 # test <- table(predict=round(model,0)[sel2%in%sel1],actual=fdata.rate[sel2%in%sel1]);test;sum(diag(test))/sum(test)
 # test <- table(predict=predict(MASS::lda(fdata.rate[sel2%in%sel1]~model10[sel2%in%sel1,]))$class,actual=fdata.rate[sel2%in%sel1]);test;sum(diag(test))/sum(test)
 # test <- table(predict=round(model,0),actual=fdata.rate);test;sum(diag(test))/sum(test)
@@ -134,11 +134,26 @@ table(predict=fdata$rate,raw=fdata$trate)
 ########################
 
 data_hmm <- as.data.table(data2.x) %>% mutate(rate=fdata$orate)
+test <-  data_hmm %>% group_by(pid=fdata$pid) %>% summarise(
+  CS1=mean(CS1),CS2=mean(CS2),CS3=mean(CS3),CS4=mean(CS4),CS5=mean(CS5),CS6=mean(CS6),
+  CS7=mean(CS7),CS8=mean(CS8),CS9=mean(CS9),CS10=mean(CS10),CS11=mean(CS11),CS12=mean(CS12),
+  orate = mean(rate)
+)
 data_hmm <- data_hmm %>% group_by(pid=fdata$pid) %>% summarise(
   CS1=mean(CS1),CS2=mean(CS2),CS3=mean(CS3),CS4=mean(CS4),CS5=mean(CS5),CS6=mean(CS6),
   CS7=mean(CS7),CS8=mean(CS8),CS9=mean(CS9),CS10=mean(CS10),CS11=mean(CS11),CS12=mean(CS12),
   orate = (mean(rate)>0)+0
 )
+
+####
+
+test <- test %>% as.data.frame()
+rownames(test) <- test$pid
+test <- select(test,-pid)
+table(predict(MASS::lda(orate~.,data=test))$class,test$orate)
+
+####
+
 cbind(pvalue=apply(select(data_hmm,-pid,-orate),2,function(x){t.test(x~data_hmm$orate)$p.value}),
       thred=colMeans(apply(select(data_hmm,-pid,-orate),2,function(x){MASS::lda(data_hmm$orate~x)$means})))
 
@@ -146,7 +161,7 @@ data_hmm.thred <- colMeans(apply(select(data_hmm,-pid,-orate),2,function(x){MASS
 data_hmm <- as.data.frame(data2.x)
 for(i in 1:ncol(data2.x)){data_hmm[,i] <- (data_hmm[,i] > data_hmm.thred[i])+0}
 data_hmm <- as.data.table(mutate(data_hmm,rate=fdata$rate,pid=fdata$pid))
-data_hmm <- mutate(data_hmm,lrate=lag(rate,default=0),lpid=lag(pid,default='0'))
+data_hmm <- mutate(data_hmm,lrate=lag(rate,d1efault=0),lpid=lag(pid,default='0'))
 
 # HMM input data
 # data_hmm_back <- data_hmm
