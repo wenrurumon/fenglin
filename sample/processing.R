@@ -1,5 +1,7 @@
 
 rm(list=ls())
+library(MatrixCompletion)
+setwd('..')#set your working folder here
 load('sample1.rda')
 
 #Processing raw data to Journey data
