@@ -1,6 +1,9 @@
 
 rm(list=ls())
 library(MatrixCompletion)
+library(data.table)
+library(dplyr)
+library(sqldf)
 setwd('..')#set your working folder here
 load('sample1.rda')
 
