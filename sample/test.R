@@ -6,7 +6,45 @@ library(dplyr)
 library(sqldf)
 # setwd('..')#set your working folder here
 # load('sample1.rda')
-load("C:/Users/admin/Downloads/sample1.rda")
+load("/Users/wenrurumon/Downloads/sample1.rda")
+
+#Pending
+#orate calcualtion 代码准备好
+#Data dictionary 表头的意义
+#Missing Value% 
+#Correlation Test 有结果的我去找找
+#Trate calculation with claimed method 加一个金标准的计算 mrate trate取最大值
+#面积的计算 两小时accumulated value。
+
+##############################
+##############################
+
+library(HMM)
+inithmm <- function(prob.hid2obs,probhid2hid,prob.orihid){
+  state <- paste(unique(data2day$trate))
+  Symbols <- paste(unique(data2day$obs))
+  startprob <- prob.orihid$n
+  transpro <- matrix(0,3,3)
+  for(j in 1:nrow(prob.hid2hid)){
+    transpro[prob.hid2hid$lrate[j]+1,prob.hid2hid$trate[j]+1] <- prob.hid2hid$n[j]
+  }
+  transpro <- transpro / rowSums(transpro)
+  emisspr <- do.call(rbind,lapply(0:2,function(i){
+    x <- filter(prob.hid2obs,trate==i)
+    x <- x$n[match(Symbols,x$obs)]
+    x[is.na(x)] <- 0
+    x/sum(x)
+  }))
+  system.time(hmm <- initHMM(States = state,Symbols = Symbols,startProbs = startprob,transProbs = transpro,
+                             emissionProbs = emisspr))
+  hmm
+}
+predhmm <- function(j){
+  oberi <- paste(filter(data2day,pid==j)$obs)
+  ratei <- paste(filter(data2day,pid==j)$trate)
+  V1=as.numeric(viterbi(hmm,oberi))
+  V1
+}
 
 #Processing raw data to Journey data
 system.time(jms <- lapply(unique(base$pid),jm)) #impute on the scale of timeseries
@@ -57,7 +95,7 @@ fdata <- mutate(fdata,rate=ifelse(mrate > trate,mrate,trate))
 
 ########end of Linear label prediction##############
 
-#Pending hmm variable input
+#HMM variable preprocess -> turn numerical into logical
 data_hmm <- as.data.table(data2.x) %>% mutate(rate=fdata$orate)
 test <-  data_hmm %>% group_by(pid=fdata$pid) %>% summarise(
   CS1=mean(CS1),CS2=mean(CS2),CS3=mean(CS3),CS4=mean(CS4),CS5=mean(CS5),CS6=mean(CS6),
@@ -72,7 +110,7 @@ data_hmm <- data_hmm %>% group_by(pid=fdata$pid) %>% summarise(
 test <- test %>% as.data.frame()
 rownames(test) <- test$pid
 test <- select(test,-pid)
-table(predict(MASS::lda(orate~.,data=test))$class,test$orate)
+table(predict=predict(MASS::lda(orate~.,data=test))$class,raw=test$orate)
 
 #correlation test between CS and overall rate
 cbind(pvalue=apply(select(data_hmm,-pid,-orate),2,function(x){t.test(x~data_hmm$orate)$p.value}),
@@ -81,19 +119,21 @@ cbind(pvalue=apply(select(data_hmm,-pid,-orate),2,function(x){t.test(x~data_hmm$
 #transform cs data from numeric into logical
 data_hmm.thred <- colMeans(apply(select(data_hmm,-pid,-orate),2,function(x){MASS::lda(data_hmm$orate~x)$means}))
 data_hmm <- as.data.frame(data2.x)
-for(i in 1:ncol(data2.x)){data_hmm[,i] <- (data_hmm[,i] >= data_hmm.thred[i])+0}
+for(i in 1:ncol(data2.x)){data_hmm[,i] <- (data_hmm[,i] >= data_hmm.thred[i])+0} # if CSi > THREDHOLDi then provide 1 otherwise 
 data_hmm <- data.table(data_hmm,rate=fdata$rate,pid=fdata$pid)
 data_hmm <- mutate(data_hmm,lrate=lag(rate,d1efault=0),lpid=lag(pid,default='0'))
 
-#Daily data processing
-data2day <- data.table(select(fdata,pid,hours,orate,trate),t=rep(0:100,length=nrow(data2.x)),data2.x
-) %>% filter(orate>0) %>% mutate(
-  day = floor(hours / 24 / 100*t + 1)
-) %>% group_by(pid,orate,day) %>% summarise(
-  trate = max(trate),
-  CS1=mean(CS1),CS2=mean(CS2),CS3=mean(CS3),CS4=mean(CS4),CS5=mean(CS5),CS6=mean(CS6),
-  CS7=mean(CS7),CS8=mean(CS8),CS9=mean(CS9),CS10=mean(CS10),CS11=mean(CS11),CS12=mean(CS12)
-) %>% as.data.frame()
+#HMM to determined time interval scale
+#Every two hours
+data2day <- data.table(select(fdata,pid,hours,orate,trate),
+                   t=rep(0:100,length=nrow(data2.x)),data2.x) %>% filter(
+                     orate>0) %>% mutate(day=floor(hours/24/100*t+1)) %>% group_by(
+                       pid,orate,day
+                     ) %>% summarise(
+                       trate = max(trate),
+                       CS1=mean(CS1),CS2=mean(CS2),CS3=mean(CS3),CS4=mean(CS4),CS5=mean(CS5),CS6=mean(CS6),
+                       CS7=mean(CS7),CS8=mean(CS8),CS9=mean(CS9),CS10=mean(CS10),CS11=mean(CS11),CS12=mean(CS12)
+                     ) %>% as.data.frame()
 for(i in 5:ncol(data2day)){data2day[,i] <- (data2day[,i] > data_hmm.thred[i-4])+0}
 summary2day <- data2day %>% group_by(trate) %>% summarise(
   n = n(),
@@ -109,42 +149,21 @@ data2day <- as.data.table(data2day) %>% mutate(obs = paste(CS1,CS2,CS3,CS4,CS5,C
 tag.obs <- unique(data2day$obs)
 data2day <- data2day %>% mutate(obs = match(obs,tag.obs))
 
-#Original data
+#HMM input
+pids <- unique(data2day$pid)
 (prob.hid2obs <- data2day %>% group_by(trate,obs) %>% summarise(n=n()))
 (prob.hid2hid <- data2day %>% filter(check) %>% group_by(lrate,trate) %>% summarise(n=n()))
 (prob.orihid <- data2day %>% filter(day==1) %>% group_by(trate) %>% summarise(n=n()))
 
-#HMM Setup
-library(HMM)
-state <- paste(unique(data2day$trate))
-Symbols <- paste(unique(data2day$obs))
-startprob <- prob.orihid$n
+#HMM Moodule
+hmm <- inithmm(prob.hid2obs,prob.hid2hid,prob.orihid)
+data2day2 <- data2day %>% mutate(trate = unlist(lapply(pids,predhmm)), 
+                                 lrate = lag(unlist(lapply(pids,predhmm)),default=0))
 
-transpro <- matrix(0,3,3)
-for(j in 1:nrow(prob.hid2hid)){
-  transpro[prob.hid2hid$lrate[j]+1,prob.hid2hid$trate[j]+1] <- prob.hid2hid$n[j]
-}
+#Aggregate to daily
+(prob.hid2obs2 <- data2day2 %>% group_by(trate,obs) %>% summarise(n=n()))
+(prob.hid2hid2 <- data2day2 %>% filter(check) %>% group_by(lrate,trate) %>% summarise(n=n()))
+(prob.orihid2 <- data2day2 %>% filter(day==1) %>% group_by(trate) %>% summarise(n=n()))
 
-transpro <- transpro / rowSums(transpro)
-transpro[2:3] <- transpro[2:3] / sum(transpro[2:3]) * (1-transpro[1])
-transpro[6] <- 1 - transpro[3] - transpro[9] 
-transpro[8] <- 1 - transpro[9] - transpro[7]
-transpro[5] <- 1 - rowSums(transpro)[2] + transpro[5]
-
-emisspr <- do.call(rbind,lapply(0:2,function(i){
-  x <- filter(prob.hid2obs,trate==i)
-  x <- x$n[match(Symbols,x$obs)]
-  x[is.na(x)] <- 0
-  x/sum(x)
-}))
-system.time(hmm <- initHMM(States = state,Symbols = Symbols,startProbs = startprob,transProbs = transpro,
-                           emissionProbs = emisspr))
-pids <- unique(data2day$pid)
-list(state=state,startprob=startprob,transpro=transpro,emisspr=head(t(emisspr)))
-
-#####################################################################################
-# Test
-#####################################################################################
-
-filter(data2day)%>% group_by(pid)%>%summarise(n_distinct(trate))
-x <- data2day %>% filter(pid=='009D1A959A7D4680EB89B475741819F7') %>% select(pid,day,lrate,trate); x
+fhmm <- inithmm(prob.hid2obs2,prob.hid2hid2,prob.orihid2)
+fhmm[1:4]
