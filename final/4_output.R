@@ -1,5 +1,24 @@
 i <- 0
-
+pred_area <- t(sapply(pids,function(pidi){
+  print(i<<-i+1)
+  x <- filter(out,pid==pidi)$exp_rate
+  x <- (x==0)*0.505 + (x==1)*0.261 + (x==2) * 0.114
+  x.hour <- floor(filter(base,pid==pidi)$hours*100)
+  x.rate <- filter(base,pid==pidi)$orate
+  f.y <- ret2(x)
+  if(length(f.y)<101){
+    f.x <- filter(out,pid==pidi)$day * 6
+    f.x[length(f.x)] <- x.hour/100
+  } else {
+    f.x <- 0:(length(f.y)) * (x.hour/(length(f.y))) / 100
+    f.x <- f.x[-length(f.x)]
+  }
+  f <- splinefun(f.x,f.y)
+  f <- f((0:x.hour)*length(x)/x.hour)
+  # plot((1:x.hour)*length(x)/x.hour,f,type='l',col=2)
+  # lines(1:length(x),ret2(x))
+  c(orate=x.rate,hour=x.hour/100,area=sum(f))
+}))
 pred_area <- data.table(pid=pids,pred_area)
 
 head(base)
