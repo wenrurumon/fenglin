@@ -64,7 +64,7 @@ area2 <- function(pidi){
   # print(i<<-i+1)
   # print(pidi)
   x <- filter(out,pid==pidi)$exp_rate
-  x <- (x==0)*0.505 + (x==1)*0.261 + (x==2) * 0.114
+  x <- (x==0)*0.717354839 + (x==1)*0.465709677 + (x==2) * 0.093
   x.hour <- floor(filter(base,pid==pidi)$hours*100)
   x.rate <- filter(base,pid==pidi)$orate
   x.int <- filter(out,pid==pidi)$day
